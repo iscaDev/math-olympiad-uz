@@ -1,58 +1,84 @@
-# Math Olympiad Uz — current setup
+# Math Olympiad Uz — platform operations
 
-The project lives on the Desktop in `math-olympiad`. Nothing is deployed online yet.
+The project lives at `~/Desktop/math-olympiad`. The public service is not live until every production verification in `DEPLOYMENT.md` passes.
 
-## What works locally
+## Architecture
 
-- Registration and login with hashed passwords and database-backed sessions.
-- Public catalogs; full problems, resources, test questions and file downloads require an account.
-- Students have private math notes and saved practice-test results.
-- Contributors create their own problems, tests, topics, articles and books, then submit for review.
-- Admins manage content, approve or return submissions, archive content, and assign roles.
-- Formula editor with a math keyboard, LaTeX, inline/display equations and previews.
-- Home totals count registered accounts and published material in the database. Draft and archived content is excluded. Sample educational material is seeded once; it is real editable content, not fabricated user activity.
-- Timed practice tests save answers automatically. The server grades numeric answers against a snapshot; written proofs are saved without automatic grading. After the deadline only previously saved answers count. These are practice tests, not a supervised competition system.
-- Uzbek learning content with Uzbek/Russian/English interface and light/dark mode.
-- AI route is prepared, but disabled until an OpenAI API key is configured. No AI purchase or request has been made.
+- Vercel serves the Next.js frontend and proxies `/api/*` through the website origin.
+- Railway runs the Express backend from the root `Dockerfile`.
+- Railway PostgreSQL stores accounts, sessions, roles, content, notes, attempts, results, audits, and rate limits.
+- A private Railway storage bucket stores uploaded PDFs and images.
+- A second private bucket receives portable PostgreSQL dumps from a daily cron job.
+- Local preview remains on SQLite plus `data/uploads`; production startup rejects SQLite and local-file storage.
 
-## Start and stop
+PostgreSQL allows multiple concurrent writers and removes the single SQLite-file bottleneck. The backend uses a bounded connection pool. A future second backend replica can be added after production behavior and costs are measured.
 
-`npm run dev` starts the frontend at http://127.0.0.1:3000 and backend at http://127.0.0.1:4000.
-Do not run a second copy if they are already running. The preview can run through Codex without an open Terminal window; the Mac must remain awake. Closing a Terminal window is different from stopping its server process. After a restart or sleep, ask Codex to check and restart the preview if necessary.
+## Required production secrets
 
-`npm run typecheck` checks types. `npm run test:backend` runs the security/workflow tests in a temporary, automatically removed database. Stop the frontend development server before `npm run build` because both use `.next`. The backend can stay running.
+Railway backend:
 
-## Your admin account
+- `PUBLIC_APP_URL`: exact final HTTPS frontend origin, without a trailing slash.
+- `DATABASE_URL`: private reference to the Railway PostgreSQL service.
+- `DATABASE_POOL_SIZE=10`.
+- `BETTER_AUTH_SECRET`: one strong generated value, at least 32 characters. Save it separately in a password manager.
+- `BACKEND_PROXY_SECRET`: a different strong value shared only by Vercel and Railway; every production API route requires it.
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`.
+- Bucket references: `AWS_ENDPOINT_URL`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_S3_BUCKET_NAME`, `AWS_DEFAULT_REGION`, and `AWS_S3_URL_STYLE`.
+- Optional: `OPENAI_API_KEY`, `OPENAI_MODEL`, and daily request limits.
 
-Register your own account in the local website. Then ask Codex to make that account the initial admin, giving only the email address. Do not share your password.
-The explicit administrator bootstrap command is `npm run admin -- your-email@example.com`. Only someone with access to the project/server can use it. The first public signup is never automatically an admin. Future role changes happen in the admin panel.
+Vercel frontend:
 
-Local email verification is disabled until SMTP is connected. The UI says this explicitly. Production refuses to start without HTTPS, a private auth secret and SMTP settings. Configure email verification and reset delivery and test them before publication.
+- `BACKEND_PROXY_SECRET`: the same gateway value used by Railway.
+- `BACKEND_URL`: Railway backend HTTPS origin.
+- Do not set `LOCAL_PREVIEW` in production.
 
-## Vercel + Railway plan
+Never put a secret in GitHub, Vercel client variables, screenshots, support messages, or chat.
 
-**Vercel** runs the Next.js frontend. Set `BACKEND_URL` to the Railway HTTPS service URL, and `PUBLIC_APP_URL` to the exact public website origin (no trailing slash). `/api/*` is proxied to Railway so login uses the website's own cookies. Backend requests are not cached. Vercel Hobby is free for personal/non-commercial use; reassess the plan before introducing commercial use. Do not connect preview deployments to the production backend by default.
+## Accounts and email
 
-**Railway** runs one Express backend instance using `Dockerfile` and `railway.json`. It keeps the SQLite database and uploads on a **persistent volume mounted at `/data`**, with `DATA_DIR=/data`. Do not deploy without this volume. SQLite and uploads must never be put on Vercel's temporary filesystem. Railway provides `PORT`; the backend listens on all interfaces in production. `/health` is the healthcheck.
+Passwords are hashed by Better Auth. Production registration requires email verification; password reset also uses email. The first signup never becomes an administrator automatically.
 
-Backend variables: `PUBLIC_APP_URL`, `DATA_DIR`, a unique random `BETTER_AUTH_SECRET` of at least 32 characters, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`. Add optional OpenAI variables privately on Railway. Keep secrets out of GitHub, screenshots and chat. `.env.example` contains names and safe defaults only.
+After the owner has registered and verified an email, grant the first administrator role through the protected bootstrap command. Further admins and contributors are managed inside the administrator panel. The server prevents removal of the last administrator.
 
-Railway has a $5/month minimum with usage beyond the included credit billed separately. Frontend hosting elsewhere may reduce usage; it does not eliminate Railway's minimum. Confirm the actual account plans and estimated usage before deploying. No hosting accounts, GitHub repo, domain routing, SMTP service or paid subscription have been configured.
+## Content and tests
 
-A single backend and SQLite database fit the initial budget. Do not enable multiple replicas against this file database. If traffic grows enough to need multiple backend instances, plan a database migration first.
+Content records and test questions are stored transactionally in PostgreSQL. Test questions remain embedded in their parent test and never appear as separate catalog items. Starting a test saves a question snapshot, so later editor changes do not alter an attempt already in progress. Answers auto-save; the server owns deadlines and grading.
 
-## AI configuration
+Uploaded PDFs and images remain private. The backend checks account access before serving them. Deleting content removes its related notes, attempts, file records, and stored objects in a controlled transaction plus storage cleanup.
 
-Set `OPENAI_API_KEY` only in the backend's private environment. Default model is `gpt-5-mini`, configurable through `OPENAI_MODEL`. Default limits are 10 requests per account/day and 100 total/day, plus 3 per minute. Input and output size are limited. These are request limits, not a guaranteed dollar spending cap; also set an OpenAI project budget/alerts and monitor usage. The UI explains that question text goes to OpenAI. Conversations are not stored by our database and requests use `store:false`.
+## Data protection
 
-Hints mode asks for a hint and guiding question; full-solution mode asks for a complete explanation. AI answers can be wrong and are not used as authoritative grading.
+Use several independent recovery layers:
 
-## Data and backups
+1. Railway daily, weekly, and monthly database volume backups.
+2. PostgreSQL point-in-time recovery when enabled.
+3. Daily portable `pg_dump` files written by `ops/postgres-backup` to a separate private backup bucket.
+4. A regular encrypted copy downloaded outside Railway.
+5. A restore drill into a staging database before public launch and after material schema changes.
+6. The permanent `BETTER_AUTH_SECRET` stored in a password manager separately from Railway.
 
-`data/platform.sqlite` stores accounts, content, notes, attempts, file records, rate-limit counters and an audit trail. `data/uploads` holds private PDFs/images. Local auth signing secret is generated once in `data/.auth-secret`. Never delete this folder as a routine cleanup, commit it, or make it public.
+A backup is accepted only after a restore test confirms accounts, content counts, attempts, and uploaded files. Never wipe a Railway volume as cleanup; Railway documents that wiping a volume also deletes its native backups.
 
-Run `npm run backup` for a consistent SQLite backup plus uploaded files in `backups/<timestamp>`. Store an encrypted copy outside the host before launching. Back up the auth secret separately in a password manager or secure host settings. Restoring with a new secret signs users out. Railway volume backups and offsite retention still need to be configured in the real account; a backup command alone is not an automated backup service.
+Local `npm run backup` makes a consistent SQLite snapshot with uploads, the authentication secret, and a manifest under ignored `backups/`.
 
-Before publishing: verify production HTTPS login/logout, email verification and reset, admin roles, private files, restore a backup in a test environment, review privacy/terms and competition rules, and check hosting/AI billing limits. Local integration tests, the production build, and browser checks for sign-in, saving a draft, submitting a test, viewing its saved result and logout passed; actual Vercel/Railway deployment and external email/AI remain untested until those accounts are connected.
+## AI controls
 
-Deployment note: Better Auth currently falls back to a shared per-path login/signup rate-limit bucket when a trustworthy client IP is unavailable through the proxy. Before public launch, configure and test the Vercel/Railway client-IP trust chain; do not blindly trust client-supplied forwarded headers. The local test does not establish that production proxy configuration.
+The OpenAI key belongs only in Railway. Requests use `store:false`, bounded input/output, per-minute and daily account limits, and a platform-wide daily limit. The interface states that AI can make mistakes. AI is never used as authoritative test grading.
+
+Set an OpenAI project budget and usage alerts in the OpenAI dashboard. Do not send the API key through chat.
+
+## Verification before launch
+
+Run the type check, backend integration suite, and production frontend build. Then verify against staging:
+
+- Registration, verification email, login, logout, and password reset.
+- Student, contributor, and multiple-admin permissions.
+- Draft, approval, publish, edit, archive, and delete.
+- PDF upload/read/download and image upload/display.
+- Timed test autosave, refresh recovery, deadline submission, grading, review, and best score.
+- Uzbek, Russian, and English interface text; light and dark themes; mobile layout.
+- OpenAI limits and failure messages.
+- PostgreSQL snapshot, portable dump, full restore, and object recovery.
+- Health monitoring, billing alerts, and hard usage limits.
+
+Production is connected to the domain only after staging passes.
