@@ -97,8 +97,6 @@ export default async function Layout({ children }: { children: React.ReactNode }
                   <Icon name="email" size={16} />
                   <span><T>{"Savol va takliflar"}</T></span>
                 </a>
-                <span className="footer-note">@math_olympiaduz</span>
-                <span className="footer-note footer-email">matholympiaduz.team@gmail.com</span>
               </div>
             </div>
             <div className="shell footer-bottom">
