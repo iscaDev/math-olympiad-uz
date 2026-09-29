@@ -555,9 +555,9 @@ export const platformTranslations: Record<string,readonly [string,string]> = {
     "Новый пароль",
     "New password"
   ],
-  "Kamida 10 ta belgi": [
-    "Не менее 10 символов",
-    "At least 10 characters"
+  "Kamida 8 ta belgi": [
+    "Не менее 8 символов",
+    "At least 8 characters"
   ],
   "Kuting…": [
     "Подождите…",
@@ -575,9 +575,13 @@ export const platformTranslations: Record<string,readonly [string,string]> = {
     "Не удалось выполнить запрос. Попробуйте снова.",
     "The request failed. Please try again."
   ],
-  "Email yoki parol noto‘g‘ri, yoxud email hali tasdiqlanmagan.": [
-    "Неверный email или пароль, либо email ещё не подтверждён.",
-    "Incorrect email or password, or your email is not verified yet."
+  "Email yoki parol noto‘g‘ri.": [
+    "Неверный email или пароль.",
+    "Incorrect email or password."
+  ],
+  "Email tasdiqlanmagan. Yangi tasdiqlash havolasi emailingizga yuborildi.": [
+    "Email не подтверждён. Новая ссылка подтверждения отправлена на вашу почту.",
+    "Your email is not verified. A new verification link has been sent to your inbox."
   ],
   "Hisob yaratib bo‘lmadi. Ma’lumotlarni tekshiring yoki kirishga urinib ko‘ring.": [
     "Не удалось создать аккаунт. Проверьте данные или попробуйте войти.",

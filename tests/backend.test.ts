@@ -21,7 +21,7 @@ test('Accounts, permissions, approval, private files, test grading and persisten
  t.after(async()=>{db?.close();await stop();await rm(dir,{recursive:true,force:true});});
  await start();db=new Database(join(dir,'platform.sqlite'));
  async function call(path:string,body?:unknown,cookie='',customOrigin=origin){const response=await fetch(base+path,{method:body===undefined?'GET':'POST',headers:{'Content-Type':'application/json',Origin:customOrigin,...(cookie?{Cookie:cookie}:{})},body:body===undefined?undefined:JSON.stringify(body)});return {status:response.status,data:await response.json(),cookie:response.headers.getSetCookie().map(s=>s.split(';')[0]).join('; ')};}
- const admin=await call('/api/auth/sign-up/email',{email:'admin@example.test',name:'Test Admin',password:'Test-Password-348!Q',role:'admin'});
+ const admin=await call('/api/auth/sign-up/email',{email:'admin@example.test',name:'Test Admin',password:'Pass123!',role:'admin'});
  assert.equal(admin.status,200,JSON.stringify(admin.data));assert.ok(admin.cookie);
  assert.equal((await call('/api/me',undefined,admin.cookie)).data.role,'student','signup cannot choose admin');
  const author=await call('/api/auth/sign-up/email',{email:'author@example.test',name:'Test Author',password:'Test-Password-348!Q'});

@@ -52,9 +52,9 @@ async function send(to:string, subject:string, url:string) {
 }
 export const auth = betterAuth({
   database: authDatabase, secret: authSecret, baseURL: appOrigin, trustedOrigins: [appOrigin],
-  emailAndPassword: { enabled:true, minPasswordLength:10, maxPasswordLength:128, requireEmailVerification:emailReady,
+  emailAndPassword: { enabled:true, minPasswordLength:8, maxPasswordLength:128, requireEmailVerification:emailReady,
     ...(emailReady ? { sendResetPassword: async ({user,url}:{user:{email:string};url:string}) => send(user.email,'Parolni tiklash',url), revokeSessionsOnPasswordReset:true } : {}) },
-  ...(emailReady ? { emailVerification: { sendOnSignUp:true, autoSignInAfterVerification:true, sendVerificationEmail: async ({user,url}:{user:{email:string};url:string}) => send(user.email,'Emailingizni tasdiqlang',url) } } : {}),
+  ...(emailReady ? { emailVerification: { sendOnSignUp:true, sendOnSignIn:true, autoSignInAfterVerification:true, sendVerificationEmail: async ({user,url}:{user:{email:string};url:string}) => send(user.email,'Emailingizni tasdiqlang',url) } } : {}),
   user: { additionalFields: { role: {type:'string',defaultValue:'student',input:false} } },
   session: { expiresIn:60*60*24*7, updateAge:60*60*24, cookieCache:{enabled:false} },
   advanced: { useSecureCookies:production, ipAddress:{ipAddressHeaders:['x-matholympiad-client-ip']} },
