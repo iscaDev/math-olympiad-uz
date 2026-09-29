@@ -114,9 +114,8 @@ export default function AssistantChat({ enabled }: { enabled: boolean }) {
       </div>
 
       <form className="assistant-composer" onSubmit={send}>
-        <MathEditor label="Savolingiz" value={input} onChange={setInput} rows={3} maxLength={4000} />
+        <MathEditor label="Savolingiz" value={input} onChange={setInput} rows={2} maxLength={4000} />
         <div className="assistant-compose-actions">
-          <p>{t("Matematik formula yozish mumkin")}</p>
           <button type="submit" className="button primary" disabled={!enabled || pending || !input.trim()}>{t("Yuborish")}<Icon name="arrow" size={18} /></button>
         </div>
       </form>
