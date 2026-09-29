@@ -763,9 +763,9 @@ export const platformTranslations: Record<string,readonly [string,string]> = {
     "Отправить",
     "Send"
   ],
-  "AI xato qilishi mumkin. Isbot va hisoblarni tekshiring. Savol matni OpenAI xizmatiga yuboriladi.": [
-    "AI может ошибаться. Проверяйте доказательства и вычисления. Текст вопроса отправляется в OpenAI.",
-    "AI can make mistakes. Check proofs and calculations. Your question is sent to OpenAI."
+  "AI xato qilishi mumkin. Isbot va hisoblarni tekshiring.": [
+    "AI может ошибаться. Проверяйте доказательства и вычисления.",
+    "AI can make mistakes. Check proofs and calculations."
   ],
   "Hozir javob olib bo‘lmadi.": [
     "Не удалось получить ответ.",

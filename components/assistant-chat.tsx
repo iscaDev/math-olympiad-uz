@@ -120,7 +120,7 @@ export default function AssistantChat({ enabled }: { enabled: boolean }) {
         </div>
       </form>
       {error && <p role="status" className="form-message assistant-error">{t(error)}</p>}
-      <p className="editor-help assistant-disclaimer">{t("AI xato qilishi mumkin. Isbot va hisoblarni tekshiring. Savol matni OpenAI xizmatiga yuboriladi.")}</p>
+      <p className="editor-help assistant-disclaimer">{t("AI xato qilishi mumkin. Isbot va hisoblarni tekshiring.")}</p>
     </div>
   );
 }
