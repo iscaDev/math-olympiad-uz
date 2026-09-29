@@ -1,0 +1,12 @@
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+.env*
+.DS_Store
+
+.env*
+!.env.example
+data/
+backups/
+*.sqlite*
