@@ -771,6 +771,34 @@ export const platformTranslations: Record<string,readonly [string,string]> = {
     "Не удалось получить ответ.",
     "Could not get a response right now."
   ],
+  "Matematika suhbatiga tayyor": [
+    "Готов к разговору о математике",
+    "Ready for a mathematics chat"
+  ],
+  "Suhbatni tozalash": [
+    "Очистить чат",
+    "Clear chat"
+  ],
+  "Matematik formula yozish mumkin": [
+    "Можно вводить математические формулы",
+    "Mathematical formulas are supported"
+  ],
+  "Sahifa ochilmoqda": [
+    "Страница открывается",
+    "Opening page"
+  ],
+  "Aloqa": [
+    "Контакты",
+    "Contact"
+  ],
+  "Telegram kanali": [
+    "Telegram-канал",
+    "Telegram channel"
+  ],
+  "Savol va takliflar": [
+    "Вопросы и предложения",
+    "Questions and suggestions"
+  ],
   "Hozir sahifani ochib bo‘lmadi": [
     "Не удалось открыть страницу",
     "Could not open this page"

@@ -5,6 +5,8 @@ import PreferencesProvider from "@/components/preferences";
 import {api} from "@/lib/api";
 import Header from "@/components/header";
 import BrandMark from "@/components/brand-mark";
+import NavigationIndicator from "@/components/navigation-indicator";
+import Icon from "@/components/icons";
 import "@fontsource-variable/manrope";
 import "katex/dist/katex.min.css";
 import "./globals.css";
@@ -35,6 +37,7 @@ export default async function Layout({ children }: { children: React.ReactNode }
       </head>
       <body>
         <PreferencesProvider>
+          <NavigationIndicator />
           <a className="skip-link" href="#main">
             <T>{"Asosiy mazmunga o‘tish"}</T>
           </a>
@@ -83,6 +86,19 @@ export default async function Layout({ children }: { children: React.ReactNode }
                 <span className="footer-note">
                   <T>{"O‘zbek tilida, qiziquvchilar uchun."}</T>
                 </span>
+              </div>
+              <div>
+                <h2><T>{"Aloqa"}</T></h2>
+                <a href="https://t.me/math_olympiaduz" target="_blank" rel="noreferrer" className="footer-contact">
+                  <Icon name="telegram" size={16} />
+                  <span><T>{"Telegram kanali"}</T></span>
+                </a>
+                <a href="mailto:matholympiaduz.team@gmail.com" className="footer-contact">
+                  <Icon name="email" size={16} />
+                  <span><T>{"Savol va takliflar"}</T></span>
+                </a>
+                <span className="footer-note">@math_olympiaduz</span>
+                <span className="footer-note footer-email">matholympiaduz.team@gmail.com</span>
               </div>
             </div>
             <div className="shell footer-bottom">
