@@ -22,7 +22,7 @@ Railway backend:
 - `DATABASE_POOL_SIZE=10`.
 - `BETTER_AUTH_SECRET`: one strong generated value, at least 32 characters. Save it separately in a password manager.
 - `BACKEND_PROXY_SECRET`: a different strong value shared only by Vercel and Railway; every production API route requires it.
-- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`.
+- `BREVO_API_KEY` or `RESEND_API_KEY`, plus `EMAIL_FROM`. Railway Hobby blocks SMTP, so production email must use an HTTPS transactional-email API. SMTP variables remain available as a local or Railway Pro fallback.
 - Bucket references: `AWS_ENDPOINT_URL`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_S3_BUCKET_NAME`, `AWS_DEFAULT_REGION`, and `AWS_S3_URL_STYLE`.
 - Optional: `OPENAI_API_KEY`, `OPENAI_MODEL`, and daily request limits.
 

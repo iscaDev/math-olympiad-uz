@@ -5,7 +5,13 @@ config({ quiet: true });
 export const production = process.env.NODE_ENV === 'production';
 export const appOrigin = new URL(process.env.PUBLIC_APP_URL || 'http://127.0.0.1:3000').origin;
 export const dataDir = resolve(process.env.DATA_DIR || './data');
-export const emailReady = Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS && process.env.EMAIL_FROM);
+export const emailReady = Boolean(
+  process.env.EMAIL_FROM && (
+    process.env.BREVO_API_KEY ||
+    process.env.RESEND_API_KEY ||
+    (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS)
+  )
+);
 if (production && ((process.env.BETTER_AUTH_SECRET?.length||0)<32 || (process.env.BACKEND_PROXY_SECRET?.length||0)<32 || !emailReady || !appOrigin.startsWith('https://'))) {
-  throw new Error('Production requires BETTER_AUTH_SECRET, BACKEND_PROXY_SECRET, HTTPS PUBLIC_APP_URL and SMTP email settings.');
+  throw new Error('Production requires BETTER_AUTH_SECRET, BACKEND_PROXY_SECRET, HTTPS PUBLIC_APP_URL and transactional email settings.');
 }
