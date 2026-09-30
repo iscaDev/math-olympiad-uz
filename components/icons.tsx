@@ -42,6 +42,7 @@ import {
   SealCheck,
   EnvelopeSimple,
   TelegramLogo,
+  Trash,
 } from "@phosphor-icons/react/dist/ssr";
 const icons = {
   moon: Moon,
@@ -87,6 +88,7 @@ const icons = {
   seal: SealCheck,
   email: EnvelopeSimple,
   telegram: TelegramLogo,
+  trash: Trash,
 };
 export type IconName = keyof typeof icons;
 export default function Icon({

@@ -109,4 +109,27 @@ test('Accounts, permissions, approval, private files, test grading and persisten
    assert.equal((await call('/api/dashboard',undefined,student.cookie)).data.attempts.length,1,'dashboard keeps the best result for each test');
    assert.equal((await call('/api/public/stats')).data.users,3);
  });
+ await t.test('admin account deletion removes private data and preserves platform content',async()=>{
+   const disposable=await call('/api/auth/sign-up/email',{email:'delete-me@example.test',name:'Delete Me',password:'Test-Password-348!Q'});
+   const disposableId=(await call('/api/me',undefined,disposable.cookie)).data.id;
+   assert.equal((await call('/api/members/'+adminId,{role:'student'},admin.cookie)).status,400,'admin cannot change own role');
+   let response=await fetch(base+'/api/members/'+adminId,{method:'DELETE',headers:{Origin:origin,Cookie:admin.cookie}});
+   assert.equal(response.status,400,'admin cannot delete own account');
+   await call('/api/members/'+disposableId,{role:'contributor'},admin.cookie);
+   const owned=await call('/api/studio',{input:{...input,title:'Preserved after account deletion'},intent:'pending'},disposable.cookie);
+   assert.equal(owned.status,200);
+   await call('/api/notes/'+problemId,{body:'Delete this private note'},disposable.cookie);
+   await call('/api/attempts/start',{content_id:testId},disposable.cookie);
+   db.prepare('INSERT INTO uploads(path,owner_id,mime,size,created_at) VALUES(?,?,?,?,?)').run('delete-owner/test.pdf',disposableId,'application/pdf',12,new Date().toISOString());
+   response=await fetch(base+'/api/members/'+disposableId,{method:'DELETE',headers:{Origin:origin,Cookie:admin.cookie}});
+   assert.equal(response.status,200,await response.text());
+   assert.equal((db.prepare('SELECT COUNT(*) n FROM user WHERE id=?').get(disposableId) as {n:number}).n,0);
+   assert.equal((db.prepare('SELECT COUNT(*) n FROM account WHERE userId=?').get(disposableId) as {n:number}).n,0);
+   assert.equal((db.prepare('SELECT COUNT(*) n FROM session WHERE userId=?').get(disposableId) as {n:number}).n,0);
+   assert.equal((db.prepare('SELECT COUNT(*) n FROM notes WHERE user_id=?').get(disposableId) as {n:number}).n,0);
+   assert.equal((db.prepare('SELECT COUNT(*) n FROM attempts WHERE user_id=?').get(disposableId) as {n:number}).n,0);
+   assert.equal((db.prepare('SELECT author_id FROM content WHERE id=?').get(owned.data.id) as {author_id:string|null}).author_id,null);
+   assert.equal((db.prepare('SELECT owner_id FROM uploads WHERE path=?').get('delete-owner/test.pdf') as {owner_id:string}).owner_id,adminId);
+   assert.equal((await call('/api/me',undefined,disposable.cookie)).status,401);
+ });
 });

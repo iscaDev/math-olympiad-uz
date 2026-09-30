@@ -83,6 +83,9 @@ export default async function Layout({ children }: { children: React.ReactNode }
                 <Link href="/about#questions">
                   <T>{"Ko‘p so‘raladigan savollar"}</T>
                 </Link>
+                <Link href="/legal/">
+                  <T>{"Maxfiylik va foydalanish shartlari"}</T>
+                </Link>
                 <span className="footer-note">
                   <T>{"O‘zbek tilida, qiziquvchilar uchun."}</T>
                 </span>

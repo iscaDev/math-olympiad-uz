@@ -6,6 +6,7 @@ export const kindLabels: Record<ContentKind, string> = { problem: 'Masala', test
 export const statusLabels: Record<Status, string> = { draft: 'Qoralama', pending: 'Tekshiruvda', published: 'Nashr etilgan', archived: 'Arxivda' };
 export const roleLabels: Record<Role, string> = { student: 'O‘quvchi', contributor: 'Muallif', admin: 'Administrator' };
 export type Profile = { id: string; display_name: string; role: Role; created_at?: string };
+export type MemberProfile = Profile & { email: string };
 export type ContentCard = {
   id: string; slug: string; kind: ContentKind; title: string; summary: string;
   topic: string; group_key: string; difficulty: string; duration: number; status: Status;

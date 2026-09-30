@@ -203,7 +203,7 @@ app.delete('/api/studio/:id',async(req,res)=>{
 });
 app.get('/api/members',async(_req,res)=>{
   admin(res);
-  const rows=await db.selectFrom('user').select(['id','name as display_name','role','createdAt as created_at']).orderBy('createdAt','desc').limit(1000).execute();
+  const rows=await db.selectFrom('user').select(['id','name as display_name','email','role','createdAt as created_at']).orderBy('createdAt','desc').limit(1000).execute();
   res.json(rows.map(row=>({...row,created_at:new Date(row.created_at).toISOString()})));
 });
 app.post('/api/members/:id',async(req,res)=>{
@@ -217,6 +217,25 @@ app.post('/api/members/:id',async(req,res)=>{
     if(target!.role==='admin'&&role!=='admin'&&count<=1)fail(400,'Kamida bitta administrator qolishi kerak.');
     await trx.updateTable('user').set({role}).where('id','=',id).execute();
     await audit(user.id,`role:${role}`,id,trx);
+  });
+  res.json({ok:true});
+});
+app.delete('/api/members/:id',async(req,res)=>{
+  const user=admin(res),id=param(req,'id');
+  if(id===user.id)fail(400,'O‘z hisobingizni bu yerdan o‘chira olmaysiz.');
+  await db.transaction().execute(async trx=>{
+    const target=await trx.selectFrom('user').select(['id','role']).where('id','=',id).executeTakeFirst();
+    if(!target)fail(404,'Hisob topilmadi.');
+    const count=Number((await trx.selectFrom('user').select(({fn})=>fn.countAll<number>().as('n')).where('role','=','admin').executeTakeFirst())?.n||0);
+    if(target!.role==='admin'&&count<=1)fail(400,'Oxirgi administrator hisobini o‘chirib bo‘lmaydi.');
+    await trx.deleteFrom('notes').where('user_id','=',id).execute();
+    await trx.deleteFrom('attempts').where('user_id','=',id).execute();
+    await trx.updateTable('content').set({author_id:null}).where('author_id','=',id).execute();
+    await trx.updateTable('uploads').set({owner_id:user.id}).where('owner_id','=',id).execute();
+    await sql`DELETE FROM "session" WHERE "userId" = ${id}`.execute(trx);
+    await sql`DELETE FROM "account" WHERE "userId" = ${id}`.execute(trx);
+    await trx.deleteFrom('user').where('id','=',id).execute();
+    await audit(user.id,'user:delete',id,trx);
   });
   res.json({ok:true});
 });
