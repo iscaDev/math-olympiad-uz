@@ -10,6 +10,8 @@ import {topics,topicFor} from "@/lib/topics";
 import {api} from "@/lib/api";
 import type {ContentCard} from "@/lib/platform-types";
 import {CatalogCard} from "@/components/content-catalog";
+import type {Metadata} from "next";
+export const metadata:Metadata={alternates:{canonical:"/"}};
 export default async function Home() {
   const items=await api<ContentCard[]>('/api/public/catalog');
   const problems=items.filter(i=>i.kind==='problem');

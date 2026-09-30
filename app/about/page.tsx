@@ -2,7 +2,7 @@ import { T } from "@/components/preferences";
 import Link from "next/link";
 import Icon from "@/components/icons";
 import { SectionHead } from "@/components/ui";
-export const metadata = { title: "Loyiha haqida" };
+export const metadata = { title: "Loyiha haqida", description: "Math Olympiad Uz — o‘zbek tilidagi mustaqil, notijorat matematika ta’lim platformasi.", alternates: { canonical: "/about/" } };
 const faqs = [
   [
     "Kimlar uchun yaratilmoqda?",

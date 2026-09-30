@@ -12,12 +12,33 @@ import "katex/dist/katex.min.css";
 import "./globals.css";
 import "./platform.css";
 export const metadata: Metadata = {
+  metadataBase: new URL("https://matholympiad.uz"),
+  applicationName: "Math Olympiad Uz",
   title: {
     default: "Math Olympiad Uz — matematikani kashf eting",
     template: "%s | Math Olympiad Uz",
   },
   description:
     "O‘zbek tilida matematik masalalar, vizual izohlar va olimpiadalarga tayyorgarlik. Matematika bilan birga o‘sing.",
+  keywords: ["matematika", "matematika olimpiadasi", "olimpiada masalalari", "matematik testlar", "O‘zbekiston", "Math Olympiad Uz"],
+  authors: [{ name: "Math Olympiad Uz", url: "https://matholympiad.uz" }],
+  creator: "Math Olympiad Uz",
+  publisher: "Math Olympiad Uz",
+  category: "education",
+  openGraph: {
+    type: "website",
+    locale: "uz_UZ",
+    siteName: "Math Olympiad Uz",
+    title: "Math Olympiad Uz — matematikani kashf eting",
+    description: "O‘zbek tilida matematik masalalar, vizual izohlar va olimpiadalarga tayyorgarlik.",
+    images: [{ url: "/brand/matholympiad-logo.png", width: 500, height: 500, alt: "Math Olympiad Uz" }],
+  },
+  twitter: {
+    card: "summary",
+    title: "Math Olympiad Uz — matematikani kashf eting",
+    description: "O‘zbek tilida matematik masalalar, vizual izohlar va olimpiadalarga tayyorgarlik.",
+    images: ["/brand/matholympiad-logo.png"],
+  },
 };
 export default async function Layout({ children }: { children: React.ReactNode }) {
   const settings=await api<{emailReady:boolean}>('/api/public/config').catch(()=>({emailReady:false}));
@@ -29,6 +50,20 @@ export default async function Layout({ children }: { children: React.ReactNode }
       data-scroll-behavior="smooth"
     >
       <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: "Math Olympiad Uz",
+              url: "https://matholympiad.uz",
+              logo: "https://matholympiad.uz/brand/matholympiad-logo.png",
+              email: "matholympiaduz.team@gmail.com",
+              sameAs: ["https://t.me/math_olympiaduz"],
+            }).replace(/</g, "\\u003c"),
+          }}
+        />
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{document.documentElement.dataset.theme=localStorage.getItem("matholympiad-theme")==="dark"?"dark":"light";}catch(e){}})();`,
