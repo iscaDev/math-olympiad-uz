@@ -168,15 +168,26 @@ app.post('/api/studio',async(req,res)=>{
   if(old && input.kind!==old.kind) fail(400,'Mavjud material turini o‘zgartirib bo‘lmaydi. Yangi material yarating.');
   const id=old?.id ?? randomUUID();
   const item:ContentItem={...input,id,slug:old?.slug ?? `${input.kind}-${id.slice(0,8)}`,status:intent,author_id:old?.author_id ?? user.id,updated_at:new Date().toISOString(),review_note:''};
+  const replacedPaths=old?contentPaths(old).filter(path=>!contentPaths(item).includes(path)):[];
   for(const path of contentPaths(item)){
     const file=await db.selectFrom('uploads').select('owner_id').where('path','=',path).executeTakeFirst();
     if(!file || (file.owner_id!==user.id && user.role!=='admin')) fail(403,'Bu faylni biriktirishga ruxsat yo‘q.');
   }
   if(intent!=='draft'){const error=publicationError(input);if(error)fail(400,error);}
+  let unusedReplacedPaths:string[]=[];
   await db.transaction().execute(async trx=>{
     await put(item,trx);
+    if(replacedPaths.length){
+      const rows=await trx.selectFrom('content').select('data').execute();
+      const referenced=new Set(rows.flatMap(row=>contentPaths({data:JSON.parse(row.data)})));
+      unusedReplacedPaths=replacedPaths.filter(path=>!referenced.has(path));
+    }
     await audit(user.id,`content:${intent}`,id,trx);
   });
+  for(const path of unusedReplacedPaths){
+    await removeFile(path);
+    await db.deleteFrom('uploads').where('path','=',path).execute();
+  }
   res.json({id});
 });
 app.post('/api/studio/:id/review',async(req,res)=>{
@@ -191,14 +202,22 @@ app.post('/api/studio/:id/review',async(req,res)=>{
 });
 app.delete('/api/studio/:id',async(req,res)=>{
   const user=admin(res),item=await editable(idParam(req),user),paths=contentPaths(item);
+  let unusedPaths:string[]=[];
   await db.transaction().execute(async trx=>{
     await trx.deleteFrom('notes').where('content_id','=',item.id).execute();
     await trx.deleteFrom('attempts').where('content_id','=',item.id).execute();
     await trx.deleteFrom('content').where('id','=',item.id).execute();
-    if(paths.length) await trx.deleteFrom('uploads').where('path','in',paths).execute();
+    if(paths.length){
+      const rows=await trx.selectFrom('content').select('data').execute();
+      const referenced=new Set(rows.flatMap(row=>contentPaths({data:JSON.parse(row.data)})));
+      unusedPaths=paths.filter(path=>!referenced.has(path));
+    }
     await audit(user.id,'content:delete',item.id,trx);
   });
-  await Promise.all(paths.map(path=>removeFile(path).catch(()=>undefined)));
+  for(const path of unusedPaths){
+    await removeFile(path);
+    await db.deleteFrom('uploads').where('path','=',path).execute();
+  }
   res.json({ok:true});
 });
 app.get('/api/members',async(_req,res)=>{

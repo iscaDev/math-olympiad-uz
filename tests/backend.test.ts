@@ -80,6 +80,16 @@ test('Accounts, permissions, approval, private files, test grading and persisten
    await call('/api/studio/'+made.data.id+'/review',{status:'published',note:''},admin.cookie);
    assert.equal((await fetch(base+'/api/files/'+made.data.id)).status,401);
    response=await fetch(base+'/api/files/'+made.data.id,{headers:{Cookie:student.cookie}});assert.equal(response.status,200);assert.match(response.headers.get('Content-Security-Policy')||'',/sandbox/);
+   const uploadPng=async(name:string)=>{
+     const image=new FormData();image.set('file',new Blob([new Uint8Array([137,80,78,71,13,10,26,10,1])],{type:'image/png'}),name);
+     const uploaded=await fetch(base+'/api/uploads',{method:'POST',headers:{Origin:origin,Cookie:author.cookie},body:image});
+     assert.equal(uploaded.status,200);return (await uploaded.json() as {path:string}).path;
+   };
+   const oldCover=await uploadPng('old-cover.png'),newCover=await uploadPng('new-cover.png');
+   assert.equal((await call('/api/studio',{input:{...book,id:made.data.id,data:{...book.data,cover_path:oldCover}},intent:'published'},admin.cookie)).status,200);
+   assert.equal((await call('/api/studio',{input:{...book,id:made.data.id,data:{...book.data,cover_path:newCover}},intent:'published'},admin.cookie)).status,200);
+   assert.equal((db.prepare('SELECT COUNT(*) n FROM uploads WHERE path=?').get(oldCover) as {n:number}).n,0,'replaced cover metadata is removed');
+   assert.equal((db.prepare('SELECT COUNT(*) n FROM uploads WHERE path=?').get(newCover) as {n:number}).n,1,'new cover remains attached');
  });
  let testId:string;
  await t.test('test snapshot, server grading, ownership and deadlines',async()=>{
