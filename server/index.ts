@@ -400,7 +400,7 @@ app.delete('/api/attempts/:id',async(req,res)=>{
 });
 
 app.post('/api/assistant',async(req,res)=>{
-  if(!process.env.OPENAI_API_KEY)fail(503,'AI hali ulanmagan. API kaliti sozlangach ishga tushadi.');
+  if(!process.env.OPENAI_API_KEY)fail(503,'AI xizmati hozir javob bermadi. Keyinroq urinib ko‘ring.');
   const {messages,mode,language}=parse(z.object({messages:z.array(z.object({role:z.enum(['user','assistant']),content:z.string().min(1).max(4000)})).min(1).max(8),mode:z.enum(['hint','solution']),language:z.enum(['uz','ru','en'])}),req.body);
   if(messages.reduce((count,message)=>count+message.content.length,0)>16000)fail(400,'Suhbat juda uzun. Yangi savoldan boshlang.');
   const user=member(res),day=new Date().toISOString().slice(0,10);

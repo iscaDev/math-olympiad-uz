@@ -731,13 +731,13 @@ export const platformTranslations: Record<string,readonly [string,string]> = {
     "Объясните эту идею на простом примере.",
     "Explain this idea with a simple example."
   ],
-  "AI hali ulanmagan": [
-    "AI ещё не подключён",
-    "AI is not connected yet"
+  "AI yordamchi vaqtincha mavjud emas": [
+    "AI-помощник временно недоступен",
+    "The AI assistant is temporarily unavailable"
   ],
-  "OpenAI kaliti serverga qo‘shilgach, yordamchi ishlaydi. Hozir formula yozishni sinab ko‘rishingiz mumkin.": [
-    "Помощник заработает после подключения OpenAI. Пока можно попробовать редактор формул.",
-    "The assistant will work once OpenAI is connected. You can try the formula editor now."
+  "Keyinroq qayta urinib ko‘ring.": [
+    "Попробуйте позже.",
+    "Please try again later."
   ],
   "Fikrlayapman…": [
     "Думаю…",

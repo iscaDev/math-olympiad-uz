@@ -140,7 +140,7 @@ test('Accounts, permissions, approval, private files, test grading and persisten
    assert.equal((await call('/api/attempts/'+again.id+'/save',{answers:{[questionId]:'9'}},student.cookie)).status,409);
    assert.equal((await call('/api/attempts/'+again.id+'/submit',{answers:{[questionId]:'9'}},student.cookie)).data.score,1,'ignores answers sent after deadline');
  });
- await t.test('AI is disabled without a key',async()=>{assert.equal((await call('/api/assistant',{messages:[{role:'user',content:'1+1'}],mode:'hint',language:'uz'},student.cookie)).status,503);});
+ await t.test('AI is disabled without exposing its configuration',async()=>{const result=await call('/api/assistant',{messages:[{role:'user',content:'1+1'}],mode:'hint',language:'uz'},student.cookie);assert.equal(result.status,503);assert.equal(result.data.error,'AI xizmati hozir javob bermadi. Keyinroq urinib ko‘ring.');});
  await t.test('AI credit exhaustion is identified without leaking secrets',async()=>{
    const provider=createServer((_req,response)=>{response.writeHead(429,{'Content-Type':'application/json'});response.end(JSON.stringify({error:{message:'You have no credits remaining.',type:'insufficient_quota',code:'credit_balance_exhausted'}}));});
    await new Promise<void>(resolve=>provider.listen(4402,'127.0.0.1',resolve));

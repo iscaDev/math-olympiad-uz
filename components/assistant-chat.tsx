@@ -93,7 +93,7 @@ export default function AssistantChat({ enabled }: { enabled: boolean }) {
         </div>
       </div>
 
-      {!enabled && <div className="setup-notice assistant-setup"><Icon name="info" size={22} /><div><strong>{t("AI hali ulanmagan")}</strong><p>{t("OpenAI kaliti serverga qo‘shilgach, yordamchi ishlaydi. Hozir formula yozishni sinab ko‘rishingiz mumkin.")}</p></div></div>}
+      {!enabled && <div className="setup-notice assistant-setup"><Icon name="info" size={22} /><div><strong>{t("AI yordamchi vaqtincha mavjud emas")}</strong><p>{t("Keyinroq qayta urinib ko‘ring.")}</p></div></div>}
 
       <div className="assistant-transcript" ref={transcript} role="log" aria-live="polite" aria-busy={pending}>
         {messages.length === 0 && (
