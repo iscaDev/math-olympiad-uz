@@ -149,7 +149,7 @@ test('Accounts, permissions, approval, private files, test grading and persisten
      await start({OPENAI_API_KEY:'test-key',OPENAI_BASE_URL:'http://127.0.0.1:4402/v1',OPENAI_MODEL:'gpt-5-mini'});
      const result=await call('/api/assistant',{messages:[{role:'user',content:'1+1'}],mode:'hint',language:'uz'},student.cookie);
      assert.equal(result.status,503);
-     assert.equal(result.data.error,'AI hisobidagi mablag‘ tugagan. Administratorga xabar bering.');
+     assert.equal(result.data.error,'AI xizmati hozir javob bermadi. Keyinroq urinib ko‘ring.');
      assert.match(logs,/credit_balance_exhausted/);
      assert.doesNotMatch(logs,/test-key/);
    }finally{await new Promise<void>(resolve=>provider.close(()=>resolve()));}

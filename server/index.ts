@@ -429,8 +429,8 @@ Teaching rules:
     const type=typeof provider?.type==='string'?provider.type:'';
     const message=error instanceof Error?error.message.slice(0,500):'unknown';
     console.error('AI provider request failed:',JSON.stringify({status,code,type,name:error instanceof Error?error.name:'unknown',message}));
-    if(status===429&&code==='credit_balance_exhausted')fail(503,'AI hisobidagi mablag‘ tugagan. Administratorga xabar bering.');
-    if(status===401||status===403)fail(503,'AI sozlamasi vaqtincha ishlamayapti. Administratorga xabar bering.');
+    if(status===429&&code==='credit_balance_exhausted')fail(503,'AI xizmati hozir javob bermadi. Keyinroq urinib ko‘ring.');
+    if(status===401||status===403)fail(503,'AI xizmati hozir javob bermadi. Keyinroq urinib ko‘ring.');
     if(status===429)fail(429,'AI xizmatiga so‘rovlar ko‘paydi. Birozdan keyin urinib ko‘ring.');
     fail(503,'AI xizmati vaqtincha ishlamayapti. Keyinroq urinib ko‘ring.');
   }
