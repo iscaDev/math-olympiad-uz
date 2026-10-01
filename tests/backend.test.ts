@@ -12,7 +12,7 @@ test('Accounts, permissions, approval, private files, test grading and persisten
  const base='http://127.0.0.1:4401',origin='http://127.0.0.1:3000';
  let child:ReturnType<typeof spawn>,db:Database.Database,logs='';
  async function start(){
-   child=spawn(process.execPath,['--import','tsx','server/index.ts'],{env:{...process.env,NODE_ENV:'test',PORT:'4401',HOST:'127.0.0.1',PUBLIC_APP_URL:origin,DATA_DIR:dir,OPENAI_API_KEY:'',SMTP_HOST:'',BETTER_AUTH_SECRET:'integration-test-secret-not-for-production-123456'},stdio:['ignore','pipe','pipe']});
+   child=spawn(process.execPath,['--import','tsx','server/index.ts'],{env:{...process.env,NODE_ENV:'test',PORT:'4401',HOST:'127.0.0.1',PUBLIC_APP_URL:origin,TRUSTED_APP_ORIGINS:'https://www.matholympiad.uz',DATA_DIR:dir,OPENAI_API_KEY:'',SMTP_HOST:'',BETTER_AUTH_SECRET:'integration-test-secret-not-for-production-123456'},stdio:['ignore','pipe','pipe']});
    child.stdout?.on('data',b=>logs+=b.toString());child.stderr?.on('data',b=>logs+=b.toString());
    for(let i=0;i<100;i++){try{if((await fetch(base+'/health')).ok)return;}catch{}await new Promise(r=>setTimeout(r,100));}
    throw new Error('Backend did not start: '+logs);
@@ -57,6 +57,7 @@ test('Accounts, permissions, approval, private files, test grading and persisten
  });
  await t.test('CSRF, roles and notes are isolated',async()=>{
    assert.equal((await call('/api/members/'+studentId,{role:'admin'},admin.cookie,'https://evil.invalid')).status,403);
+   assert.equal((await call('/api/members/'+studentId,{role:'student'},admin.cookie,'https://www.matholympiad.uz')).status,200,'configured site alias is trusted');
    assert.equal((await call('/api/members/'+studentId,{role:'admin'},author.cookie)).status,403);
    assert.equal((await call('/api/members/'+adminId,{role:'student'},admin.cookie)).status,400);
    assert.equal((await call('/api/members/'+aid,{role:'student'},admin.cookie)).status,200);
@@ -67,6 +68,15 @@ test('Accounts, permissions, approval, private files, test grading and persisten
    assert.equal((await call('/api/content/'+problemId,undefined,author.cookie)).data.note,'');
    assert.equal((await call('/api/check/'+problemId,{answer:'2'},student.cookie)).data.correct,true);
    assert.equal((await call('/api/check/'+problemId,{answer:'3'},student.cookie)).data.correct,false);
+ });
+ await t.test('admin content deletion accepts the trusted site and removes related data',async()=>{
+   const made=await call('/api/studio',{input:{...input,title:'Delete this content'},intent:'published'},admin.cookie);
+   assert.equal(made.status,200);
+   await call('/api/notes/'+made.data.id,{body:'Temporary note'},student.cookie);
+   const response=await fetch(base+'/api/studio/'+made.data.id,{method:'DELETE',headers:{Origin:'https://www.matholympiad.uz',Cookie:admin.cookie}});
+   assert.equal(response.status,200,await response.text());
+   assert.equal((db.prepare('SELECT COUNT(*) n FROM content WHERE id=?').get(made.data.id) as {n:number}).n,0);
+   assert.equal((db.prepare('SELECT COUNT(*) n FROM notes WHERE content_id=?').get(made.data.id) as {n:number}).n,0);
  });
  await t.test('uploads stay private and reject disguised formats',async()=>{
    const form=new FormData();form.set('file',new Blob(['<script>bad</script>'],{type:'application/pdf'}),'bad.pdf');

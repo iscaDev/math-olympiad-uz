@@ -5,7 +5,8 @@ import type { Profile } from './platform-types';
 export class ApiError extends Error { constructor(public status:number,message:string){super(message);} }
 export async function api<T>(path:string, options:{method?:string;body?:unknown}={}):Promise<T> {
   const jar=await cookies();
-  const headers:Record<string,string>={Cookie:jar.toString(),Origin:new URL(process.env.PUBLIC_APP_URL||'http://127.0.0.1:3000').origin};
+  const publicUrl=process.env.PUBLIC_APP_URL||(process.env.NODE_ENV==='production'?'https://matholympiad.uz':'http://127.0.0.1:3000');
+  const headers:Record<string,string>={Cookie:jar.toString(),Origin:new URL(publicUrl).origin};
   if(process.env.BACKEND_PROXY_SECRET)headers['x-matholympiad-gateway']=process.env.BACKEND_PROXY_SECRET;
   const isForm=options.body instanceof FormData;
   if(options.body!==undefined && !isForm) headers['Content-Type']='application/json';

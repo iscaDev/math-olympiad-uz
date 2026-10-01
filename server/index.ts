@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { sql } from 'kysely';
 import OpenAI from 'openai';
 import { auth, migrateAuth } from './auth';
-import { appOrigin, production, emailReady } from './config';
+import { production, emailReady, isTrustedOrigin } from './config';
 import { db, audit, limit, initializeDatabase, closeDatabase } from './db';
 import { loadFile, removeFile, storeFile } from './storage';
 import { seed, migrateEmbeddedTestQuestions, catalog, byId, bySlug, put, profile, card } from './store';
@@ -76,7 +76,7 @@ app.use('/api',(req,_res,next)=>{
 app.all('/api/auth/*splat',toNodeHandler(auth));
 app.use(express.json({limit:'2mb'}));
 app.use('/api',(req,_res,next)=>{
-  if(!['GET','HEAD','OPTIONS'].includes(req.method) && req.headers.origin!==appOrigin) return next(new HttpError(403,'So‘rov manbasi tasdiqlanmadi.'));
+  if(!['GET','HEAD','OPTIONS'].includes(req.method) && !isTrustedOrigin(req.headers.origin)) return next(new HttpError(403,'So‘rov manbasi tasdiqlanmadi.'));
   next();
 });
 

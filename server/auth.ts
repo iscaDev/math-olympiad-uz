@@ -2,7 +2,7 @@ import { betterAuth } from 'better-auth';
 import { getMigrations } from 'better-auth/db/migration';
 import nodemailer from 'nodemailer';
 import { authDatabase, authSecret } from './db';
-import { appOrigin, emailReady, production } from './config';
+import { appOrigin, emailReady, production, trustedOrigins } from './config';
 const smtpReady = Boolean(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
 const mailer = smtpReady ? nodemailer.createTransport({
   host: process.env.SMTP_HOST,
@@ -51,7 +51,7 @@ async function send(to:string, subject:string, url:string) {
   await mailer.sendMail({ from: process.env.EMAIL_FROM, to, subject:fullSubject, text });
 }
 export const auth = betterAuth({
-  database: authDatabase, secret: authSecret, baseURL: appOrigin, trustedOrigins: [appOrigin],
+  database: authDatabase, secret: authSecret, baseURL: appOrigin, trustedOrigins,
   emailAndPassword: { enabled:true, minPasswordLength:8, maxPasswordLength:128, requireEmailVerification:emailReady,
     ...(emailReady ? { sendResetPassword: async ({user,url}:{user:{email:string};url:string}) => send(user.email,'Parolni tiklash',url), revokeSessionsOnPasswordReset:true } : {}) },
   ...(emailReady ? { emailVerification: { sendOnSignUp:true, sendOnSignIn:true, autoSignInAfterVerification:true, sendVerificationEmail: async ({user,url}:{user:{email:string};url:string}) => send(user.email,'Emailingizni tasdiqlang',url) } } : {}),
