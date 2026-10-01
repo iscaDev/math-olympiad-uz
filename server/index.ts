@@ -42,6 +42,41 @@ const contentPaths=(item:Pick<ContentItem,'data'>)=>Array.from(new Set([
   item.data.cover_path,
   ...item.data.test_questions.map(question=>question.image_path),
 ].filter(Boolean)));
+const rawContentPaths=(value:string)=>{
+  try{
+    const data=JSON.parse(value) as Partial<ContentItem['data']>;
+    return Array.from(new Set([
+      typeof data.file_path==='string'?data.file_path:'',
+      typeof data.cover_path==='string'?data.cover_path:'',
+      ...(Array.isArray(data.test_questions)?data.test_questions.map(question=>typeof question?.image_path==='string'?question.image_path:''):[]),
+    ].filter(Boolean)));
+  }catch{return [] as string[];}
+};
+async function cleanupStoredPaths(paths:string[]){
+  for(const path of paths){
+    let removed=false,lastError:unknown;
+    for(const delay of [0,150,500]){
+      if(delay)await new Promise(resolve=>setTimeout(resolve,delay));
+      try{
+        await removeFile(path);
+        await db.deleteFrom('uploads').where('path','=',path).execute();
+        removed=true;
+        break;
+      }catch(error){lastError=error;}
+    }
+    if(!removed)console.error('Stored file cleanup deferred:',lastError instanceof Error?lastError.message:'unknown');
+  }
+}
+async function cleanupStaleUploads(){
+  const [content,uploads]=await Promise.all([
+    db.selectFrom('content').select('data').execute(),
+    db.selectFrom('uploads').select(['path','created_at']).execute(),
+  ]);
+  const referenced=new Set(content.flatMap(row=>rawContentPaths(row.data)));
+  const cutoff=Date.now()-24*60*60*1000;
+  const stale=uploads.filter(upload=>!referenced.has(upload.path)&&Date.parse(upload.created_at)<cutoff).map(upload=>upload.path);
+  await cleanupStoredPaths(stale);
+}
 function sameAnswer(given:string,correct:string) {
   const a=numberValue(given), b=numberValue(correct);
   if(a!==null&&b!==null) return Math.abs(a-b)<=1e-9*Math.max(1,Math.abs(b));
@@ -53,6 +88,9 @@ await initializeDatabase();
 await migrateAuth();
 await seed();
 await migrateEmbeddedTestQuestions();
+void cleanupStaleUploads().catch(error=>console.error('Stale upload cleanup failed:',error instanceof Error?error.message:'unknown'));
+const cleanupTimer=setInterval(()=>void cleanupStaleUploads().catch(error=>console.error('Stale upload cleanup failed:',error instanceof Error?error.message:'unknown')),6*60*60*1000);
+cleanupTimer.unref();
 
 const app=express();
 app.disable('x-powered-by');
@@ -184,10 +222,7 @@ app.post('/api/studio',async(req,res)=>{
     }
     await audit(user.id,`content:${intent}`,id,trx);
   });
-  for(const path of unusedReplacedPaths){
-    await removeFile(path);
-    await db.deleteFrom('uploads').where('path','=',path).execute();
-  }
+  await cleanupStoredPaths(unusedReplacedPaths);
   res.json({id});
 });
 app.post('/api/studio/:id/review',async(req,res)=>{
@@ -214,10 +249,7 @@ app.delete('/api/studio/:id',async(req,res)=>{
     }
     await audit(user.id,'content:delete',item.id,trx);
   });
-  for(const path of unusedPaths){
-    await removeFile(path);
-    await db.deleteFrom('uploads').where('path','=',path).execute();
-  }
+  await cleanupStoredPaths(unusedPaths);
   res.json({ok:true});
 });
 app.get('/api/members',async(_req,res)=>{
@@ -397,10 +429,10 @@ app.use((err:unknown,_req:Request,res:Response,_next:NextFunction)=>{
   if(err instanceof HttpError)return res.status(err.status).json({error:err.message});
   if(err instanceof multer.MulterError)return res.status(400).json({error:'Fayl hajmi 20 MB dan oshmasin. Bitta fayl tanlang.'});
   if(err&&typeof err==='object'&&'status'in err&&[400,413].includes(Number(err.status)))return res.status(Number(err.status)).json({error:'So‘rov hajmi yoki shakli noto‘g‘ri.'});
-  console.error('Backend request failed:',err instanceof Error?err.name:'unknown');
+  console.error('Backend request failed:',err instanceof Error?`${err.name}: ${err.message}`:'unknown');
   res.status(500).json({error:'Server xatosi. Keyinroq urinib ko‘ring.'});
 });
 const server=app.listen(Number(process.env.PORT||4000),process.env.HOST||(production?'0.0.0.0':'127.0.0.1'),()=>console.log(`Math Olympiad API ready on port ${process.env.PORT||4000}`));
-function shutdown(){server.close(async()=>{await closeDatabase();process.exit(0);});}
+function shutdown(){clearInterval(cleanupTimer);server.close(async()=>{await closeDatabase();process.exit(0);});}
 process.on('SIGINT',shutdown);
 process.on('SIGTERM',shutdown);

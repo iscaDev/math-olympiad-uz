@@ -6,7 +6,10 @@ export class ApiError extends Error { constructor(public status:number,message:s
 export async function api<T>(path:string, options:{method?:string;body?:unknown}={}):Promise<T> {
   const jar=await cookies();
   const publicUrl=process.env.PUBLIC_APP_URL||(process.env.NODE_ENV==='production'?'https://matholympiad.uz':'http://127.0.0.1:3000');
-  const headers:Record<string,string>={Cookie:jar.toString(),Origin:new URL(publicUrl).origin};
+  // Internal production writes must always identify the canonical site. A stale
+  // deployment URL in Vercel must not make server actions fail CSRF validation.
+  const origin=process.env.NODE_ENV==='production'?'https://matholympiad.uz':new URL(publicUrl).origin;
+  const headers:Record<string,string>={Cookie:jar.toString(),Origin:origin};
   if(process.env.BACKEND_PROXY_SECRET)headers['x-matholympiad-gateway']=process.env.BACKEND_PROXY_SECRET;
   const isForm=options.body instanceof FormData;
   if(options.body!==undefined && !isForm) headers['Content-Type']='application/json';

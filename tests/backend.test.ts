@@ -69,14 +69,23 @@ test('Accounts, permissions, approval, private files, test grading and persisten
    assert.equal((await call('/api/check/'+problemId,{answer:'2'},student.cookie)).data.correct,true);
    assert.equal((await call('/api/check/'+problemId,{answer:'3'},student.cookie)).data.correct,false);
  });
- await t.test('admin content deletion accepts the trusted site and removes related data',async()=>{
-   const made=await call('/api/studio',{input:{...input,title:'Delete this content'},intent:'published'},admin.cookie);
+ await t.test('admin content deletion accepts the trusted site and removes related data and files',async()=>{
+   const image=new FormData();image.set('file',new Blob([new Uint8Array([137,80,78,71,13,10,26,10,1])],{type:'image/png'}),'delete-me.png');
+   const uploaded=await fetch(base+'/api/uploads',{method:'POST',headers:{Origin:origin,Cookie:admin.cookie},body:image});
+   assert.equal(uploaded.status,200);
+   const {path}=await uploaded.json() as {path:string};
+   const questionId='20000000-0000-4000-8000-000000000001';
+   const deleteInput={...input,kind:'test',title:'Delete this content',group_key:'grade-5',data:{...emptyBody,body:'Temporary test.',test_questions:[{id:questionId,body:'Compute $1+1$.',answer_type:'numeric' as const,choices:[],answer:'2',points:1,image_path:path}]}};
+   const made=await call('/api/studio',{input:deleteInput,intent:'published'},admin.cookie);
    assert.equal(made.status,200);
    await call('/api/notes/'+made.data.id,{body:'Temporary note'},student.cookie);
+   const attempt=await call('/api/attempts/start',{content_id:made.data.id},student.cookie);assert.equal(attempt.status,200);
    const response=await fetch(base+'/api/studio/'+made.data.id,{method:'DELETE',headers:{Origin:'https://www.matholympiad.uz',Cookie:admin.cookie}});
    assert.equal(response.status,200,await response.text());
    assert.equal((db.prepare('SELECT COUNT(*) n FROM content WHERE id=?').get(made.data.id) as {n:number}).n,0);
    assert.equal((db.prepare('SELECT COUNT(*) n FROM notes WHERE content_id=?').get(made.data.id) as {n:number}).n,0);
+   assert.equal((db.prepare('SELECT COUNT(*) n FROM attempts WHERE content_id=?').get(made.data.id) as {n:number}).n,0);
+   assert.equal((db.prepare('SELECT COUNT(*) n FROM uploads WHERE path=?').get(path) as {n:number}).n,0);
  });
  await t.test('uploads stay private and reject disguised formats',async()=>{
    const form=new FormData();form.set('file',new Blob(['<script>bad</script>'],{type:'application/pdf'}),'bad.pdf');
