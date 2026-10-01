@@ -404,7 +404,7 @@ app.post('/api/assistant',async(req,res)=>{
   const {messages,mode,language}=parse(z.object({messages:z.array(z.object({role:z.enum(['user','assistant']),content:z.string().min(1).max(4000)})).min(1).max(8),mode:z.enum(['hint','solution']),language:z.enum(['uz','ru','en'])}),req.body);
   if(messages.reduce((count,message)=>count+message.content.length,0)>16000)fail(400,'Suhbat juda uzun. Yangi savoldan boshlang.');
   const user=member(res),day=new Date().toISOString().slice(0,10);
-  if(!await limit(`ai-minute:${user.id}`,3,60000)||!await limit(`ai-day:${day}:${user.id}`,Number(process.env.AI_USER_DAILY_LIMIT||10),86400000)||!await limit(`ai-total:${day}`,Number(process.env.AI_TOTAL_DAILY_LIMIT||100),86400000))fail(429,'AI limiti tugadi. Keyinroq urinib ko‘ring.');
+  if(!await limit(`ai-minute:${user.id}`,3,60000)||!await limit(`ai-day:${day}:${user.id}`,Number(process.env.AI_USER_DAILY_LIMIT||100),86400000)||!await limit(`ai-total:${day}`,Number(process.env.AI_TOTAL_DAILY_LIMIT||2000),86400000))fail(429,'AI limiti tugadi. Keyinroq urinib ko‘ring.');
   try{
     const client=new OpenAI({apiKey:process.env.OPENAI_API_KEY,baseURL:process.env.OPENAI_BASE_URL||undefined,timeout:45000,maxRetries:1});
     const response=await client.responses.create({model:process.env.OPENAI_MODEL||'gpt-5-mini',store:false,max_output_tokens:2500,reasoning:{effort:'low'},instructions:`You are the Math Olympiad Uz tutor. Respond in ${language==='uz'?'Uzbek':language==='ru'?'Russian':'English'}.
