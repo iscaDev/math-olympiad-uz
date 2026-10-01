@@ -38,10 +38,10 @@ async function published(id:string) {
   return item!;
 }
 const contentPaths=(item:Pick<ContentItem,'data'>)=>Array.from(new Set([
-  item.data.file_path,
-  item.data.cover_path,
-  ...item.data.test_questions.map(question=>question.image_path),
-].filter(Boolean)));
+  item.data?.file_path,
+  item.data?.cover_path,
+  ...(Array.isArray(item.data?.test_questions)?item.data.test_questions.map(question=>question?.image_path):[]),
+].filter((path):path is string=>typeof path==='string'&&Boolean(path))));
 const rawContentPaths=(value:string)=>{
   try{
     const data=JSON.parse(value) as Partial<ContentItem['data']>;
@@ -217,7 +217,7 @@ app.post('/api/studio',async(req,res)=>{
     await put(item,trx);
     if(replacedPaths.length){
       const rows=await trx.selectFrom('content').select('data').execute();
-      const referenced=new Set(rows.flatMap(row=>contentPaths({data:JSON.parse(row.data)})));
+      const referenced=new Set(rows.flatMap(row=>rawContentPaths(row.data)));
       unusedReplacedPaths=replacedPaths.filter(path=>!referenced.has(path));
     }
     await audit(user.id,`content:${intent}`,id,trx);
@@ -244,7 +244,7 @@ app.delete('/api/studio/:id',async(req,res)=>{
     await trx.deleteFrom('content').where('id','=',item.id).execute();
     if(paths.length){
       const rows=await trx.selectFrom('content').select('data').execute();
-      const referenced=new Set(rows.flatMap(row=>contentPaths({data:JSON.parse(row.data)})));
+      const referenced=new Set(rows.flatMap(row=>rawContentPaths(row.data)));
       unusedPaths=paths.filter(path=>!referenced.has(path));
     }
     await audit(user.id,'content:delete',item.id,trx);

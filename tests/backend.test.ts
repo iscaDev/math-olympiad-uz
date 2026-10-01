@@ -70,6 +70,11 @@ test('Accounts, permissions, approval, private files, test grading and persisten
    assert.equal((await call('/api/check/'+problemId,{answer:'3'},student.cookie)).data.correct,false);
  });
  await t.test('admin content deletion accepts the trusted site and removes related data and files',async()=>{
+   const now=new Date().toISOString();
+   for(const [id,title,kind] of [
+     ['30000000-0000-4000-8000-000000000001','Legacy book without modern fields','book'],
+     ['30000000-0000-4000-8000-000000000002','Legacy test without modern fields','test'],
+   ])db.prepare('INSERT INTO content (id,slug,kind,title,summary,topic,group_key,difficulty,duration,status,author_id,updated_at,review_note,data) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)').run(id,`legacy-${kind}`,kind,title,'Legacy data','algebra',kind==='test'?'grade-5':'','Boshlang‘ich',1,'published',adminId,now,'',JSON.stringify({body:'Legacy content'}));
    const image=new FormData();image.set('file',new Blob([new Uint8Array([137,80,78,71,13,10,26,10,1])],{type:'image/png'}),'delete-me.png');
    const uploaded=await fetch(base+'/api/uploads',{method:'POST',headers:{Origin:origin,Cookie:admin.cookie},body:image});
    assert.equal(uploaded.status,200);
@@ -86,6 +91,10 @@ test('Accounts, permissions, approval, private files, test grading and persisten
    assert.equal((db.prepare('SELECT COUNT(*) n FROM notes WHERE content_id=?').get(made.data.id) as {n:number}).n,0);
    assert.equal((db.prepare('SELECT COUNT(*) n FROM attempts WHERE content_id=?').get(made.data.id) as {n:number}).n,0);
    assert.equal((db.prepare('SELECT COUNT(*) n FROM uploads WHERE path=?').get(path) as {n:number}).n,0);
+   for(const id of ['30000000-0000-4000-8000-000000000001','30000000-0000-4000-8000-000000000002']){
+     const legacy=await fetch(base+'/api/studio/'+id,{method:'DELETE',headers:{Origin:'https://www.matholympiad.uz',Cookie:admin.cookie}});
+     assert.equal(legacy.status,200,await legacy.text());
+   }
  });
  await t.test('uploads stay private and reject disguised formats',async()=>{
    const form=new FormData();form.set('file',new Blob(['<script>bad</script>'],{type:'application/pdf'}),'bad.pdf');
