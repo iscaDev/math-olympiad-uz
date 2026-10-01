@@ -4,6 +4,7 @@ import {spawn} from 'node:child_process';
 import {mkdtemp,rm} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
+import {createServer} from 'node:http';
 import Database from 'better-sqlite3';
 import {emptyBody} from '../lib/platform-types';
 
@@ -11,8 +12,8 @@ test('Accounts, permissions, approval, private files, test grading and persisten
  const dir=await mkdtemp(join(tmpdir(),'math-backend-test-'));
  const base='http://127.0.0.1:4401',origin='http://127.0.0.1:3000';
  let child:ReturnType<typeof spawn>,db:Database.Database,logs='';
- async function start(){
-   child=spawn(process.execPath,['--import','tsx','server/index.ts'],{env:{...process.env,NODE_ENV:'test',PORT:'4401',HOST:'127.0.0.1',PUBLIC_APP_URL:origin,TRUSTED_APP_ORIGINS:'https://www.matholympiad.uz',DATA_DIR:dir,OPENAI_API_KEY:'',SMTP_HOST:'',BETTER_AUTH_SECRET:'integration-test-secret-not-for-production-123456'},stdio:['ignore','pipe','pipe']});
+ async function start(extra:Record<string,string>={}){
+   child=spawn(process.execPath,['--import','tsx','server/index.ts'],{env:{...process.env,NODE_ENV:'test',PORT:'4401',HOST:'127.0.0.1',PUBLIC_APP_URL:origin,TRUSTED_APP_ORIGINS:'https://www.matholympiad.uz',DATA_DIR:dir,OPENAI_API_KEY:'',SMTP_HOST:'',BETTER_AUTH_SECRET:'integration-test-secret-not-for-production-123456',...extra},stdio:['ignore','pipe','pipe']});
    child.stdout?.on('data',b=>logs+=b.toString());child.stderr?.on('data',b=>logs+=b.toString());
    for(let i=0;i<100;i++){try{if((await fetch(base+'/health')).ok)return;}catch{}await new Promise(r=>setTimeout(r,100));}
    throw new Error('Backend did not start: '+logs);
@@ -140,6 +141,19 @@ test('Accounts, permissions, approval, private files, test grading and persisten
    assert.equal((await call('/api/attempts/'+again.id+'/submit',{answers:{[questionId]:'9'}},student.cookie)).data.score,1,'ignores answers sent after deadline');
  });
  await t.test('AI is disabled without a key',async()=>{assert.equal((await call('/api/assistant',{messages:[{role:'user',content:'1+1'}],mode:'hint',language:'uz'},student.cookie)).status,503);});
+ await t.test('AI credit exhaustion is identified without leaking secrets',async()=>{
+   const provider=createServer((_req,response)=>{response.writeHead(429,{'Content-Type':'application/json'});response.end(JSON.stringify({error:{message:'You have no credits remaining.',type:'insufficient_quota',code:'credit_balance_exhausted'}}));});
+   await new Promise<void>(resolve=>provider.listen(4402,'127.0.0.1',resolve));
+   try{
+     await stop();
+     await start({OPENAI_API_KEY:'test-key',OPENAI_BASE_URL:'http://127.0.0.1:4402/v1',OPENAI_MODEL:'gpt-5-mini'});
+     const result=await call('/api/assistant',{messages:[{role:'user',content:'1+1'}],mode:'hint',language:'uz'},student.cookie);
+     assert.equal(result.status,503);
+     assert.equal(result.data.error,'AI hisobidagi mablag‘ tugagan. Administratorga xabar bering.');
+     assert.match(logs,/credit_balance_exhausted/);
+     assert.doesNotMatch(logs,/test-key/);
+   }finally{await new Promise<void>(resolve=>provider.close(()=>resolve()));}
+ });
  await t.test('accounts, sessions, content and notes survive restart',async()=>{
    await stop();await start();
    assert.equal((await call('/api/me',undefined,student.cookie)).data.id,studentId);

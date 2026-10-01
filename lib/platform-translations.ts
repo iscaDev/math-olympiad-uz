@@ -771,6 +771,22 @@ export const platformTranslations: Record<string,readonly [string,string]> = {
     "Не удалось получить ответ.",
     "Could not get a response right now."
   ],
+  "AI hisobidagi mablag‘ tugagan. Administratorga xabar bering.": [
+    "Средства на счёте AI закончились. Сообщите администратору.",
+    "The AI account has no remaining credit. Please notify the administrator."
+  ],
+  "AI sozlamasi vaqtincha ishlamayapti. Administratorga xabar bering.": [
+    "Настройки AI временно не работают. Сообщите администратору.",
+    "The AI configuration is temporarily unavailable. Please notify the administrator."
+  ],
+  "AI xizmatiga so‘rovlar ko‘paydi. Birozdan keyin urinib ko‘ring.": [
+    "Сервис AI получил слишком много запросов. Попробуйте немного позже.",
+    "The AI service is receiving too many requests. Please try again shortly."
+  ],
+  "AI xizmati vaqtincha ishlamayapti. Keyinroq urinib ko‘ring.": [
+    "Сервис AI временно недоступен. Попробуйте позже.",
+    "The AI service is temporarily unavailable. Please try again later."
+  ],
   "Matematika suhbatiga tayyor": [
     "Готов к разговору о математике",
     "Ready for a mathematics chat"

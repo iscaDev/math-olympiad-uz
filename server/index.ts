@@ -406,7 +406,7 @@ app.post('/api/assistant',async(req,res)=>{
   const user=member(res),day=new Date().toISOString().slice(0,10);
   if(!await limit(`ai-minute:${user.id}`,3,60000)||!await limit(`ai-day:${day}:${user.id}`,Number(process.env.AI_USER_DAILY_LIMIT||10),86400000)||!await limit(`ai-total:${day}`,Number(process.env.AI_TOTAL_DAILY_LIMIT||100),86400000))fail(429,'AI limiti tugadi. Keyinroq urinib ko‘ring.');
   try{
-    const client=new OpenAI({apiKey:process.env.OPENAI_API_KEY,timeout:45000,maxRetries:0});
+    const client=new OpenAI({apiKey:process.env.OPENAI_API_KEY,baseURL:process.env.OPENAI_BASE_URL||undefined,timeout:45000,maxRetries:1});
     const response=await client.responses.create({model:process.env.OPENAI_MODEL||'gpt-5-mini',store:false,max_output_tokens:2500,reasoning:{effort:'low'},instructions:`You are the Math Olympiad Uz tutor. Respond in ${language==='uz'?'Uzbek':language==='ru'?'Russian':'English'}.
 
 Scope rules:
@@ -421,7 +421,19 @@ Teaching rules:
 - Be concise, age-appropriate, and honest when uncertain. Do not invent theorems, calculations, or sources.`,input:messages});
     if(!response.output_text)fail(502,'AI javobini olib bo‘lmadi. Savolni qisqartirib ko‘ring.');
     res.json({answer:response.output_text});
-  }catch(error){if(error instanceof HttpError)throw error;fail(502,'AI xizmati hozir javob bermadi. Keyinroq urinib ko‘ring.');}
+  }catch(error){
+    if(error instanceof HttpError)throw error;
+    const provider=error instanceof OpenAI.APIError?error:null;
+    const status=provider?.status;
+    const code=typeof provider?.code==='string'?provider.code:'';
+    const type=typeof provider?.type==='string'?provider.type:'';
+    const message=error instanceof Error?error.message.slice(0,500):'unknown';
+    console.error('AI provider request failed:',JSON.stringify({status,code,type,name:error instanceof Error?error.name:'unknown',message}));
+    if(status===429&&code==='credit_balance_exhausted')fail(503,'AI hisobidagi mablag‘ tugagan. Administratorga xabar bering.');
+    if(status===401||status===403)fail(503,'AI sozlamasi vaqtincha ishlamayapti. Administratorga xabar bering.');
+    if(status===429)fail(429,'AI xizmatiga so‘rovlar ko‘paydi. Birozdan keyin urinib ko‘ring.');
+    fail(503,'AI xizmati vaqtincha ishlamayapti. Keyinroq urinib ko‘ring.');
+  }
 });
 
 app.use((_req,_res,next)=>next(new HttpError(404,'Sahifa topilmadi.')));
