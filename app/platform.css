@@ -134,7 +134,10 @@
 .auth-fields input:not(:disabled){background:var(--surface);color:var(--ink)}
 .auth-submit:not(:disabled){background:var(--violet);color:#fff;border-color:var(--violet)}
 .auth-reset{display:block;font-size:12px;color:var(--violet);margin:13px 0 20px;background:none;border:0}
-.auth-message{font-size:12px;line-height:1.8;margin:14px 0;color:var(--violet)}
+.auth-message{display:flex;align-items:flex-start;gap:10px;margin:16px 0 2px;padding:13px 14px;border:1px solid;border-radius:11px;font-size:13px;font-weight:700;line-height:1.55}
+.auth-message svg{flex:none;margin-top:1px}.auth-message p{margin:0}
+.auth-message.delivery{color:var(--violet);background:var(--surface-violet);border-color:color-mix(in srgb,var(--violet) 28%,var(--line))}
+.auth-message.error{color:#a62d40;background:color-mix(in srgb,#b52d3f 9%,var(--surface));border-color:color-mix(in srgb,#b52d3f 32%,var(--line))}
 .assistant-entry{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--surface-violet);color:var(--violet);border-radius:9px;padding:9px 11px;font-size:12px;font-weight:750;white-space:nowrap}
 .assistant-page{max-width:940px;margin:45px auto 90px;padding:0 20px}
 .assistant-page h1{font-size:39px;margin:12px 0}.assistant-page>.muted{font-size:14px;line-height:1.8;margin-bottom:25px}
