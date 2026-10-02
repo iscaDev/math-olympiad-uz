@@ -1,7 +1,7 @@
 import express, { type Request, type Response, type NextFunction } from 'express';
 import { toNodeHandler, fromNodeHeaders } from 'better-auth/node';
 import multer from 'multer';
-import { randomUUID, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 import { sql } from 'kysely';
 import OpenAI from 'openai';
@@ -104,6 +104,41 @@ app.use((_req,res,next) => {
 app.get('/health', async (_req,res) => {
   await db.selectFrom('settings').select('key').limit(1).execute();
   res.json({ok:true});
+});
+const directUploadCors=(req:Request,res:Response,next:NextFunction)=>{
+  const origin=req.headers.origin;
+  if(!isTrustedOrigin(origin))return next(new HttpError(403,'So‘rov manbasi tasdiqlanmadi.'));
+  res.set('Access-Control-Allow-Origin',origin!);
+  res.set('Access-Control-Allow-Methods','PUT, OPTIONS');
+  res.set('Access-Control-Allow-Headers','Content-Type, X-Upload-Ticket');
+  res.set('Vary','Origin');
+  if(req.method==='OPTIONS')return res.sendStatus(204);
+  next();
+};
+const consumeDirectUploadTicket=async(req:Request,res:Response,next:NextFunction)=>{
+  const token=req.get('x-upload-ticket')||'';
+  if(!/^[A-Za-z0-9_-]{40,80}$/.test(token))fail(403,'Yuklash ruxsati yaroqsiz. Qayta urinib ko‘ring.');
+  const key=`upload-ticket:${createHash('sha256').update(token).digest('hex')}`;
+  const row=await db.deleteFrom('settings').where('key','=',key).returning('value').executeTakeFirst();
+  if(!row)fail(403,'Yuklash ruxsati tugagan. Qayta urinib ko‘ring.');
+  const ticket=parse(z.object({user_id:z.string().min(1).max(200),path:z.string().regex(/^[a-f0-9-]{36}\/[a-f0-9-]{36}\.(?:pdf|png|jpg|webp)$/),mime:z.enum(['application/pdf','image/png','image/jpeg','image/webp']),size:z.number().int().positive().max(20*1024*1024),expires:z.number().int()}),JSON.parse(row!.value));
+  if(ticket.expires<Date.now())fail(403,'Yuklash ruxsati tugagan. Qayta urinib ko‘ring.');
+  const contentLength=Number(req.get('content-length')||0);
+  if(contentLength&&contentLength!==ticket.size)fail(400,'Fayl hajmi o‘zgardi. Qayta tanlab ko‘ring.');
+  const user=await profile(ticket.user_id);
+  if(!user||user.role==='student')fail(403,'Muallif huquqi kerak.');
+  res.locals.directUpload={ticket,user};
+  next();
+};
+app.options('/direct-upload',directUploadCors);
+app.put('/direct-upload',directUploadCors,consumeDirectUploadTicket,express.raw({type:()=>true,limit:'20mb'}),async(req,res)=>{
+  const {ticket,user}=res.locals.directUpload as {ticket:{path:string;mime:UploadMime;size:number};user:Profile};
+  const body=Buffer.isBuffer(req.body)?req.body:Buffer.alloc(0);
+  if(body.length!==ticket.size)fail(400,'Fayl hajmi o‘zgardi. Qayta tanlab ko‘ring.');
+  const format=detectUploadFormat(body);
+  if(!format||format[1]!==ticket.mime)fail(400,'Faqat PDF, PNG, JPG yoki WebP fayllar qabul qilinadi.');
+  await persistUpload(user.id,ticket.path,body,format![1]);
+  res.json({path:ticket.path});
 });
 app.use('/api',(req,_res,next)=>{
   if(!production)return next();
@@ -292,28 +327,56 @@ app.delete('/api/members/:id',async(req,res)=>{
   res.json({ok:true});
 });
 
+const uploadMimeToExtension={
+  'application/pdf':'pdf','image/png':'png','image/jpeg':'jpg','image/webp':'webp',
+} as const;
+type UploadMime=keyof typeof uploadMimeToExtension;
+const detectUploadFormat=(body:Buffer):[string,UploadMime]|null=>body.subarray(0,5).toString()==='%PDF-'?['pdf','application/pdf']:
+  body.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))?['png','image/png']:
+  body[0]===255&&body[1]===216&&body[2]===255?['jpg','image/jpeg']:
+  body.subarray(0,4).toString()==='RIFF'&&body.subarray(8,12).toString()==='WEBP'?['webp','image/webp']:null;
+async function persistUpload(ownerId:string,path:string,body:Buffer,mime:UploadMime){
+  const total=Number((await db.selectFrom('uploads').select(sql<number>`COALESCE(SUM(size), 0)`.as('n')).executeTakeFirst())?.n||0);
+  const own=Number((await db.selectFrom('uploads').select(sql<number>`COALESCE(SUM(size), 0)`.as('n')).where('owner_id','=',ownerId).executeTakeFirst())?.n||0);
+  if(total+body.length>Number(process.env.UPLOAD_TOTAL_MB||10240)*1024*1024||own+body.length>1024*1024*1024)fail(413,'Fayllar uchun joy limiti to‘ldi. Administratorga murojaat qiling.');
+  if(!await limit(`upload:${ownerId}`,120,86400000))fail(429,'Bugungi fayl yuklash limiti tugadi.');
+  await storeFile(path,body,mime);
+  try{
+    await db.insertInto('uploads').values({path,owner_id:ownerId,mime,size:body.length,created_at:new Date().toISOString()}).execute();
+  }catch(error){
+    await removeFile(path).catch(()=>undefined);
+    throw error;
+  }
+}
+function directUploadOrigin(req:Request){
+  const configured=process.env.BACKEND_PUBLIC_URL?.trim();
+  const railwayDomain=process.env.RAILWAY_PUBLIC_DOMAIN?.trim();
+  return new URL(configured||(railwayDomain?`https://${railwayDomain}`:`${req.protocol}://${req.get('host')}`)).origin;
+}
+async function cleanupUploadTickets(){
+  const rows=await db.selectFrom('settings').select(['key','value']).where('key','like','upload-ticket:%').execute();
+  const expired=rows.filter(row=>{try{return Number((JSON.parse(row.value) as {expires?:number}).expires||0)<Date.now();}catch{return true;}}).map(row=>row.key);
+  if(expired.length)await db.deleteFrom('settings').where('key','in',expired).execute();
+}
+app.post('/api/uploads/ticket',async(req,res)=>{
+  const user=writer(res);
+  const input=parse(z.object({size:z.number().int().positive().max(20*1024*1024),mime:z.enum(['application/pdf','image/png','image/jpeg','image/webp'])}),req.body);
+  if(!await limit(`upload-ticket:${user.id}`,10,60000))fail(429,'Juda ko‘p fayl yuklash boshlandi. Bir oz kuting.');
+  await cleanupUploadTickets();
+  const token=randomBytes(32).toString('base64url'),path=`${randomUUID()}/${randomUUID()}.${uploadMimeToExtension[input.mime]}`;
+  const key=`upload-ticket:${createHash('sha256').update(token).digest('hex')}`;
+  await db.insertInto('settings').values({key,value:JSON.stringify({user_id:user.id,path,mime:input.mime,size:input.size,expires:Date.now()+10*60*1000})}).execute();
+  res.json({upload_url:`${directUploadOrigin(req)}/direct-upload`,ticket:token});
+});
 const upload=multer({storage:multer.memoryStorage(),limits:{fileSize:20*1024*1024,files:1,fields:0}});
 app.post('/api/uploads',(_req,res,next)=>{writer(res);next();},upload.single('file'),async(req,res)=>{
   const user=writer(res),file=req.file;
   if(!file)fail(400,'Fayl tanlang.');
   const body=file!.buffer;
-  const format: [string,string] | null=body.subarray(0,5).toString()==='%PDF-'?['pdf','application/pdf']:
-    body.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))?['png','image/png']:
-    body[0]===255&&body[1]===216&&body[2]===255?['jpg','image/jpeg']:
-    body.subarray(0,4).toString()==='RIFF'&&body.subarray(8,12).toString()==='WEBP'?['webp','image/webp']:null;
+  const format=detectUploadFormat(body);
   if(!format)fail(400,'Faqat PDF, PNG, JPG yoki WebP fayllar qabul qilinadi.');
-  const total=Number((await db.selectFrom('uploads').select(sql<number>`COALESCE(SUM(size), 0)`.as('n')).executeTakeFirst())?.n||0);
-  const own=Number((await db.selectFrom('uploads').select(sql<number>`COALESCE(SUM(size), 0)`.as('n')).where('owner_id','=',user.id).executeTakeFirst())?.n||0);
-  if(total+body.length>Number(process.env.UPLOAD_TOTAL_MB||10240)*1024*1024||own+body.length>1024*1024*1024)fail(413,'Fayllar uchun joy limiti to‘ldi. Administratorga murojaat qiling.');
-  if(!await limit(`upload:${user.id}`,120,86400000))fail(429,'Bugungi fayl yuklash limiti tugadi.');
   const path=`${randomUUID()}/${randomUUID()}.${format![0]}`;
-  await storeFile(path,body,format![1]);
-  try{
-    await db.insertInto('uploads').values({path,owner_id:user.id,mime:format![1],size:body.length,created_at:new Date().toISOString()}).execute();
-  }catch(error){
-    await removeFile(path).catch(()=>undefined);
-    throw error;
-  }
+  await persistUpload(user.id,path,body,format![1]);
   res.json({path});
 });
 app.get('/api/files/:id',async(req,res)=>{

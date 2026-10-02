@@ -129,6 +129,25 @@ test('Accounts, permissions, approval, private files, test grading and persisten
    assert.equal((db.prepare('SELECT COUNT(*) n FROM uploads WHERE path=?').get(oldCover) as {n:number}).n,0,'replaced cover metadata is removed');
    assert.equal((db.prepare('SELECT COUNT(*) n FROM uploads WHERE path=?').get(newCover) as {n:number}).n,1,'new cover remains attached');
  });
+ await t.test('large uploads bypass the frontend body limit with a one-use ticket',async()=>{
+   const size=10*1024*1024;
+   const ticket=await call('/api/uploads/ticket',{size,mime:'application/pdf'},author.cookie);
+   assert.equal(ticket.status,200,JSON.stringify(ticket.data));
+   assert.equal(ticket.data.upload_url,base+'/direct-upload');
+   const pdf=Buffer.alloc(size);pdf.write('%PDF-1.7\n');
+   const preflight=await fetch(ticket.data.upload_url,{method:'OPTIONS',headers:{Origin:origin,'Access-Control-Request-Method':'PUT','Access-Control-Request-Headers':'content-type,x-upload-ticket'}});
+   assert.equal(preflight.status,204);
+   assert.equal(preflight.headers.get('access-control-allow-origin'),origin);
+   const response=await fetch(ticket.data.upload_url,{method:'PUT',headers:{Origin:origin,'Content-Type':'application/pdf','X-Upload-Ticket':ticket.data.ticket},body:pdf});
+   const uploaded=await response.json() as {path?:string;error?:string};
+   assert.equal(response.status,200,JSON.stringify(uploaded));
+   assert.equal(response.headers.get('access-control-allow-origin'),origin);
+   const path=uploaded.path!;
+   const saved=db.prepare('SELECT owner_id,mime,size FROM uploads WHERE path=?').get(path) as {owner_id:string;mime:string;size:number};
+   assert.deepEqual(saved,{owner_id:aid,mime:'application/pdf',size});
+   const replay=await fetch(ticket.data.upload_url,{method:'PUT',headers:{Origin:origin,'Content-Type':'application/pdf','X-Upload-Ticket':ticket.data.ticket},body:pdf});
+   assert.equal(replay.status,403,'upload tickets cannot be reused');
+ });
  let testId:string;
  await t.test('test snapshot, server grading, ownership and deadlines',async()=>{
    const questionId='10000000-0000-4000-8000-000000000001';
