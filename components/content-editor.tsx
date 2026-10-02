@@ -8,6 +8,7 @@ import FormulaField from './formula-field';
 import MathProse from './math-prose';
 import Icon from './icons';
 import { usePreferences } from './preferences';
+import { sumTestPoints } from '@/lib/test-points';
 
 const kinds:ContentKind[]=['problem','test','lesson','article','book'];
 const topicOptions=[['algebra','Algebra'],['geometry','Geometriya'],['numbers','Sonlar nazariyasi'],['combinatorics','Kombinatorika'],['general','Umumiy matematika']];
@@ -30,7 +31,7 @@ export default function ContentEditor({ initial, role, catalog=[], demo=false }:
  const [message,setMessage]=useState('');const [pending,setPending]=useState(false);const [uploading,setUploading]=useState('');const [preview,setPreview]=useState(false);
  const [openQuestion,setOpenQuestion]=useState<string|null>(initial?.data.test_questions?.[0]?.id??null);
  const isTest=kind==='test',learning=['lesson','article','book'].includes(kind);
- const totalPoints=Math.round(data.test_questions.reduce((sum,q)=>sum+Number(q.points||0),0)*100)/100;
+ const totalPoints=sumTestPoints(data.test_questions);
  function change<K extends keyof ContentBody>(key:K,value:ContentBody[K]){setData(d=>({...d,[key]:value}));}
  function updateQuestion(id:string,patch:Partial<EmbeddedTestQuestion>){setData(d=>({...d,test_questions:d.test_questions.map(q=>q.id===id?{...q,...patch}:q)}));}
  function addQuestion(){if(data.test_questions.length>=100){setMessage('Bitta testda 100 tagacha savol bo‘lishi mumkin.');return;}const question=freshQuestion();change('test_questions',[...data.test_questions,question]);setOpenQuestion(question.id);}

@@ -12,6 +12,7 @@ import { loadFile, removeFile, storeFile } from './storage';
 import { seed, migrateEmbeddedTestQuestions, catalog, byId, bySlug, put, profile, card } from './store';
 import { contentSchema, publicationError, numberValue } from '../lib/content-validation';
 import { chooseCardDisplay } from '../lib/card-display';
+import { roundTestPoints, sumTestPoints } from '../lib/test-points';
 import type { ContentItem, Profile } from '../lib/platform-types';
 
 class HttpError extends Error { constructor(public status:number, message:string) { super(message); } }
@@ -190,7 +191,7 @@ app.get('/api/dashboard',async(_req,res)=>{
     const oldRatio=previous?Number(previous.score||0)/Math.max(1,Number(previous.total||0)):-1;
     if(!previous||ratio>oldRatio) best.set(attempt.content_id,attempt);
   }
-  const attempts=Array.from(best.values()).slice(0,30).map(attempt=>({...attempt,updated_at:new Date(Number(attempt.submitted_at)).toISOString()}));
+  const attempts=Array.from(best.values()).slice(0,30).map(attempt=>({...attempt,score:attempt.score===null?null:roundTestPoints(Number(attempt.score)),total:attempt.total===null?null:roundTestPoints(Number(attempt.total)),updated_at:new Date(Number(attempt.submitted_at)).toISOString()}));
   res.json({notes,attempts});
 });
 app.get('/api/studio',async(_req,res)=>{
@@ -328,7 +329,7 @@ app.get('/api/files/:id',async(req,res)=>{
 
 type Question={id:string;body:string;answer_type:'numeric'|'expression'|'choice';choices:string[];points:number;image_path:string;has_image:boolean;answer:string};
 type Attempt={id:string;user_id:string;content_id:string;title:string;questions:string;answers:string;expires_at:number;submitted_at:number|null;score:number|null;total:number|null;written:number|null};
-const normalizeAttempt=(attempt:Attempt):Attempt=>({...attempt,expires_at:Number(attempt.expires_at),submitted_at:attempt.submitted_at===null?null:Number(attempt.submitted_at),score:attempt.score===null?null:Number(attempt.score),total:attempt.total===null?null:Number(attempt.total),written:attempt.written===null?null:Number(attempt.written)});
+const normalizeAttempt=(attempt:Attempt):Attempt=>({...attempt,expires_at:Number(attempt.expires_at),submitted_at:attempt.submitted_at===null?null:Number(attempt.submitted_at),score:attempt.score===null?null:roundTestPoints(Number(attempt.score)),total:attempt.total===null?null:roundTestPoints(Number(attempt.total)),written:attempt.written===null?null:Number(attempt.written)});
 async function attemptFor(id:string,user:Profile,database=db){
   const attempt=await database.selectFrom('attempts').selectAll().where('id','=',id).where('user_id','=',user.id).executeTakeFirst() as Attempt|undefined;
   if(!attempt)fail(404,'Urinish topilmadi.');
@@ -384,9 +385,8 @@ app.post('/api/attempts/:id/submit',async(req,res)=>{
     if(attempt.submitted_at!==null)return{score:attempt.score,total:attempt.total,written:attempt.written};
     const answers=Date.now()<=attempt.expires_at?cleanAnswers(attempt,req.body.answers):JSON.parse(attempt.answers) as Record<string,string>;
     const questions=JSON.parse(attempt.questions) as Question[];
-    let score=0,total=0;
-    for(const question of questions){total+=question.points;if(sameAnswer(answers[question.id]||'',question.answer))score+=question.points;}
-    score=Math.round(score*100)/100;total=Math.round(total*100)/100;
+    const total=sumTestPoints(questions);
+    const score=sumTestPoints(questions.filter(question=>sameAnswer(answers[question.id]||'',question.answer)));
     await trx.updateTable('attempts').set({answers:JSON.stringify(answers),submitted_at:Date.now(),score,total,written:0}).where('id','=',attempt.id).where('submitted_at','is',null).execute();
     return{score,total,written:0};
   });

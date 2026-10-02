@@ -8,6 +8,7 @@ import FormulaField from './formula-field';
 import AttemptReview from './attempt-review';
 import Icon from './icons';
 import { usePreferences } from './preferences';
+import { sumTestPoints } from '@/lib/test-points';
 const choiceText=(value:string)=>/\\[a-zA-Z]+|[{}_^]/.test(value)?`$${value}$`:value;
 const needsFullChoiceRows=(choices:string[])=>choices.some(value=>value.replace(/\\[a-zA-Z]+/g,'xx').replace(/[{}]/g,'').trim().length>42||/\\(?:begin|cases|substack|matrix)/.test(value));
 export default function TestRunner({ item }: { item: ContentItem }) {
@@ -18,7 +19,7 @@ export default function TestRunner({ item }: { item: ContentItem }) {
   useEffect(()=>{if(!attempt||result)return;const sections=Array.from(root.current?.querySelectorAll<HTMLElement>('.test-question')??[]);const observer=new IntersectionObserver(entries=>{const visible=entries.filter(entry=>entry.isIntersecting).sort((a,b)=>Math.abs(a.boundingClientRect.top)-Math.abs(b.boundingClientRect.top))[0];if(visible)setCurrentQuestion(Number((visible.target as HTMLElement).dataset.question||1));},{rootMargin:'-22% 0px -62% 0px',threshold:0});sections.forEach(section=>observer.observe(section));return()=>observer.disconnect();},[attempt,result]);
   function begin(){setMessage('');start(async()=>{const response=await startAttempt(item.id);if('error'in response)setMessage(response.error);else{submitted.current=false;setCurrentQuestion(1);setAttempt(response);setAnswers(response.answers);setSeconds(Math.max(0,Math.ceil((Date.parse(response.expires_at)-Date.now())/1000)));setResult(null);}});}
   function finish(){if(!attempt||submitted.current)return;submitted.current=true;start(async()=>{const response=await submitAttempt(attempt.id,answers);if('error'in response){setMessage(response.error);submitted.current=false;}else setResult(response);});}
-  const answered=attempt?.questions.filter(q=>answers[q.id]?.trim()).length||0,totalPoints=attempt?.questions.reduce((n,q)=>n+q.points,0)||item.data.test_questions.reduce((n,q)=>n+Number(q.points||0),0);
+  const answered=attempt?.questions.filter(q=>answers[q.id]?.trim()).length||0,totalPoints=sumTestPoints(attempt?.questions??item.data.test_questions);
   function set(id:string,value:string){if(seconds>0)setAnswers(a=>({...a,[id]:value}));}
   async function fullscreen(){if(!document.fullscreenElement)await root.current?.requestFullscreen();else await document.exitFullscreen();}
   return <article className="test-workspace" ref={root}>

@@ -7,6 +7,15 @@ import {join} from 'node:path';
 import {createServer} from 'node:http';
 import Database from 'better-sqlite3';
 import {emptyBody} from '../lib/platform-types';
+import {roundTestPoints,sumTestPoints} from '../lib/test-points';
+
+test('test point totals hide floating-point noise without changing question data',()=>{
+ const questions=[...Array.from({length:29},()=>({points:1.7})),{points:0.7}];
+ assert.equal(questions.reduce((total,question)=>total+question.points,0),50.00000000000002);
+ assert.equal(sumTestPoints(questions),50);
+ assert.equal(roundTestPoints(50.000000000000014),50);
+ assert.deepEqual(questions.map(question=>question.points),[...Array(29).fill(1.7),0.7]);
+});
 
 test('Accounts, permissions, approval, private files, test grading and persistence',async(t)=>{
  const dir=await mkdtemp(join(tmpdir(),'math-backend-test-'));
