@@ -932,12 +932,6 @@ input[type="range"]::-moz-range-thumb {
 @media (prefers-reduced-motion: reduce) {
   .math-route-loader span,.page-loading span { animation: none; }
 }
-.footer-note {
-  font-size: 12px;
-  color: var(--muted);
-  display: block;
-  margin-top: 12px;
-}
 .footer-bottom {
   border-top: 1px solid var(--line);
   padding-block: 20px;

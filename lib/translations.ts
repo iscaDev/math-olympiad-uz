@@ -94,10 +94,6 @@ export const translations: Record<string, Translation> = {
     "Частые вопросы",
     "Frequently asked questions",
   ],
-  "O‘zbek tilida, qiziquvchilar uchun.": [
-    "На узбекском, для любознательных.",
-    "In Uzbek, for curious minds.",
-  ],
   "Interaktiv namuna · Natijalar saqlanmaydi": [
     "Интерактивный прототип · Результаты не сохраняются",
     "Interactive preview · Results are not saved",
