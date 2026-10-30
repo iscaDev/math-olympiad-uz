@@ -11,28 +11,6 @@ The application includes:
 - Formula editing, LaTeX rendering, image attachments, PDF reading, Uzbek/Russian/English interface text, and light/dark themes.
 - An optional OpenAI tutor that gives hints first and full solutions on request.
 
-## Local preview
-
-The working directory is `~/Desktop/math-olympiad`.
-
-```sh
-npm install
-npm run build
-npm run preview
-```
-
-Open http://127.0.0.1:3000. Local development uses SQLite and local private uploads so the preview remains easy to run. Production refuses to start without PostgreSQL, HTTPS, email delivery, an authentication secret, and private object storage.
-
-Useful checks:
-
-```sh
-npm run typecheck
-npm run test:backend
-npm run backup
-```
-
-Local data, uploaded files, backups, environment files, build output, and secrets are ignored by Git and must never be committed.
-
 ## Production architecture
 
 - **Vercel:** Next.js frontend and same-origin `/api` proxy.
